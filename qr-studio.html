@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Studio — Créateur de QR codes</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    :root { color-scheme: dark; --bg:#0b1020; --panel:#141c31; --muted:#9ba8c7; --accent:#7c5cff; --accent2:#24d3b5; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; font-family:Inter,system-ui,Arial,sans-serif; color:#f5f7ff; background:radial-gradient(circle at 15% 0%,#20264a 0,transparent 35%),var(--bg); padding:28px 16px; }
+    .wrap { max-width:900px; margin:auto; }
+    header { text-align:center; margin:18px 0 28px; }
+    .logo { display:inline-grid; place-items:center; width:54px;height:54px;border-radius:17px;background:linear-gradient(135deg,var(--accent),#3b8cff);font-size:27px;box-shadow:0 10px 35px #7c5cff55; }
+    h1 { font-size:clamp(28px,5vw,42px); margin:14px 0 8px; letter-spacing:-1.3px; }
+    header p { color:var(--muted); margin:0; }
+    .layout { display:grid; grid-template-columns:1.1fr .9fr; gap:18px; }
+    .panel { background:#141c31ee; border:1px solid #ffffff14; border-radius:22px; padding:22px; box-shadow:0 18px 55px #0003; }
+    h2 { font-size:18px; margin:0 0 18px; }
+    .tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+    .tab { flex:1; min-width:90px; border:1px solid #ffffff20; color:#cbd4ee; background:#0d1427; padding:11px 10px; border-radius:12px; cursor:pointer; font-weight:650; }
+    .tab.active { background:#34266d; border-color:var(--accent); color:white; }
+    label { display:block; font-size:13px; color:#cbd4ee; margin:14px 0 8px; }
+    textarea,input[type="url"],input[type="text"] { width:100%; border:1px solid #ffffff22; background:#0b1224; color:white; padding:13px 14px; border-radius:12px; outline:none; font:inherit; }
+    textarea { min-height:130px; resize:vertical; }
+    textarea:focus,input:focus { border-color:var(--accent); }
+    input[type=file] { width:100%; padding:13px; background:#0b1224; border:1px dashed #ffffff35; border-radius:12px; color:var(--muted); }
+    .hint { color:var(--muted); font-size:12px; line-height:1.5; margin-top:9px; }
+    .primary { width:100%; border:0; border-radius:13px; padding:14px; margin-top:18px; background:linear-gradient(100deg,var(--accent),#4d8dff); color:white; font-weight:750; font-size:15px; cursor:pointer; }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    .preview { display:flex; flex-direction:column; align-items:center; text-align:center; min-height:320px; justify-content:center; }
+    #qrcode { background:white; padding:14px; border-radius:15px; min-height:0; min-width:0; display:inline-flex; align-items:center; justify-content:center; }
+    #qrcode:empty { width:190px;height:190px;background:#0b1224;border:1px dashed #ffffff30; }
+    #qrcode img,#qrcode canvas { max-width:100%; height:auto !important; }
+    .placeholder { color:var(--muted); font-size:13px; max-width:230px; line-height:1.5; margin-top:16px; }
+    .download { display:none; text-decoration:none; margin-top:18px; padding:11px 18px; border-radius:12px; background:#123e3a; color:#7af0d9; font-weight:700; }
+    .status { min-height:20px; color:#ffbf76; font-size:12px; line-height:1.5; margin-top:10px; }
+    .hidden { display:none; }
+    footer { text-align:center; color:#7784a5; font-size:12px; margin:22px 0 0; }
+    @media(max-width:700px) { .layout { grid-template-columns:1fr; } .panel { padding:18px; } .preview { min-height:280px; } }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div class="logo">▦</div>
+      <h1>QR Studio</h1>
+      <p>Crée ton QR code en quelques secondes.</p>
+    </header>
+
+    <section class="layout">
+      <div class="panel">
+        <h2>1. Que veux-tu mettre dans ton QR code ?</h2>
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-mode="link" type="button">🔗 Lien</button>
+          <button class="tab" data-mode="text" type="button">💬 Message</button>
+          <button class="tab" data-mode="photo" type="button">🖼️ Photo</button>
+        </div>
+
+        <div id="linkBox">
+          <label for="linkInput">Adresse du site</label>
+          <input id="linkInput" type="url" placeholder="https://exemple.com">
+        </div>
+        <div id="textBox" class="hidden">
+          <label for="textInput">Ton message</label>
+          <textarea id="textInput" placeholder="Écris ton message ici..."></textarea>
+        </div>
+        <div id="photoBox" class="hidden">
+          <label for="photoInput">Choisir une photo</label>
+          <input id="photoInput" type="file" accept="image/*">
+          <div class="hint">La photo sera réduite pour tenter de la faire tenir dans le QR code. Les QR codes ont une capacité limitée : une image trop lourde ne pourra pas être intégrée. Pour partager une photo en qualité normale, utilise plutôt un lien public vers cette photo.</div>
+          <img id="photoPreview" class="hidden" alt="Aperçu de la photo" style="max-width:100%;max-height:130px;object-fit:contain;margin-top:12px;border-radius:12px">
+        </div>
+
+        <button class="primary" id="generateBtn" type="button">Créer mon QR code</button>
+        <div class="status" id="status" aria-live="polite"></div>
+      </div>
+
+      <div class="panel preview">
+        <h2>2. Ton QR code</h2>
+        <div id="qrcode"></div>
+        <div class="placeholder" id="placeholder">Ton QR code apparaîtra ici. Scanne-le avec l'appareil photo d'un téléphone pour tester.</div>
+        <a id="downloadBtn" class="download" download="mon-qr-code.png">⬇ Télécharger le QR code</a>
+      </div>
+    </section>
+    <footer>QR Studio · Gratuit · Fonctionne dans ton navigateur</footer>
+  </main>
+
+<script>
+  const tabs = document.querySelectorAll('.tab');
+  const boxes = { link: document.getElementById('linkBox'), text: document.getElementById('textBox'), photo: document.getElementById('photoBox') };
+  const qr = document.getElementById('qrcode');
+  const status = document.getElementById('status');
+  const placeholder = document.getElementById('placeholder');
+  const downloadBtn = document.getElementById('downloadBtn');
+  let mode = 'link';
+  let selectedPhoto = null;
+
+  tabs.forEach(tab => tab.addEventListener('click', () => {
+    mode = tab.dataset.mode;
+    tabs.forEach(t => t.classList.toggle('active', t === tab));
+    Object.entries(boxes).forEach(([key, box]) => box.classList.toggle('hidden', key !== mode));
+    status.textContent = '';
+  }));
+
+  document.getElementById('photoInput').addEventListener('change', event => {
+    const file = event.target.files[0];
+    selectedPhoto = file || null;
+    const preview = document.getElementById('photoPreview');
+    if (file) {
+      preview.src = URL.createObjectURL(file);
+      preview.classList.remove('hidden');
+    } else {
+      preview.classList.add('hidden');
+    }
+  });
+
+  function makeSmallPhotoData(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Impossible de lire cette photo.'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('Format de photo non reconnu.'));
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxSide = 42;
+          const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.25));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  document.getElementById('generateBtn').addEventListener('click', async () => {
+    status.textContent = '';
+    let value = '';
+    if (mode === 'link') {
+      value = document.getElementById('linkInput').value.trim();
+      if (!value) { status.textContent = 'Ajoute un lien avant de continuer.'; return; }
+      if (!/^https?:\/\//i.test(value)) value = 'https://' + value;
+      try { new URL(value); } catch { status.textContent = 'Ce lien ne semble pas valide.'; return; }
+    } else if (mode === 'text') {
+      value = document.getElementById('textInput').value.trim();
+      if (!value) { status.textContent = 'Écris un message avant de continuer.'; return; }
+    } else {
+      if (!selectedPhoto) { status.textContent = 'Choisis une photo avant de continuer.'; return; }
+      status.textContent = 'Préparation de la photo…';
+      try { value = await makeSmallPhotoData(selectedPhoto); }
+      catch (e) { status.textContent = e.message; return; }
+      if (value.length > 2600) {
+        status.textContent = 'Cette photo ne tient pas dans un QR code, même réduite. Utilise un lien public vers la photo à la place.';
+        return;
+      }
+    }
+
+    if (typeof QRCode === 'undefined') {
+      status.textContent = 'La bibliothèque QR ne s’est pas chargée. Vérifie ta connexion Internet puis actualise la page.';
+      return;
+    }
+    qr.innerHTML = '';
+    try {
+      new QRCode(qr, { text: value, width: 220, height: 220, colorDark: '#101426', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.L });
+      placeholder.classList.add('hidden');
+      setTimeout(() => {
+        const canvas = qr.querySelector('canvas');
+        const image = qr.querySelector('img');
+        const data = canvas ? canvas.toDataURL('image/png') : image ? image.src : '';
+        if (data) {
+          downloadBtn.href = data;
+          downloadBtn.style.display = 'inline-block';
+          status.textContent = mode === 'photo'
+            ? 'QR code créé. Il contient une version très réduite de la photo : teste-le avec un autre téléphone.'
+            : 'QR code créé ! Tu peux le télécharger.';
+        } else {
+          status.textContent = 'Impossible de créer ce QR code. Essaie avec un contenu plus court.';
+        }
+      }, 150);
+    } catch (e) {
+      qr.innerHTML = '';
+      placeholder.classList.remove('hidden');
+      status.textContent = 'Contenu trop long pour un QR code. Raccourcis ton message ou utilise un lien.';
+    }
+  });
+</script>
+</body>
+</html>
